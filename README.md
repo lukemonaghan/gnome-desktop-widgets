@@ -151,7 +151,7 @@ my-widget/
 | `drag_region` | no | `"background"` makes the whole widget draggable without the drag key. Default: none |
 | `instances` | no | `{ "add_label": "New Sticky Note" }` gives the widget's page in Preferences a button with that label that adds another copy (see [Multiple instances](#multiple-instances)). Leave it out for a widget that should stay single |
 | `layout_revision` | no | Raise it when you change `width`/`height` in an update: existing installs then get the new size once (their position is kept), after which their own resizing wins again |
-| `x`, `y`, `width`, `height` | no | Initial geometry in pixels. `x` and `y` are measured from the top-left corner of the **primary monitor**, and the widget is moved in if it would hang off the edge. After the first run the position saved in `layout.json` wins, except that a saved position that is on no monitor at all (e.g. a monitor that was unplugged) is moved back onto the primary one |
+| `x`, `y`, `width`, `height` | no | Initial geometry in pixels. `x` and `y` are measured from the top-left corner of the **primary monitor**, and the widget is moved in if it would hang off the edge. After the first run the position saved in `layout.json` wins. Saved positions are measured from the primary monitor too, so widgets follow it when the monitors change (dock/undock). A widget that no longer fits on any monitor is shown on the primary one instead, and goes back to its saved spot when the monitor returns |
 | `permissions` | no | `"network"`, `"filesystem"` and/or `"media"` (see [Sandbox](#sandbox-trust-and-permissions)) |
 | `trusted` | no | Skips the sandbox checks and permissions. See the warning below |
 | `enabled` | no | Whether the widget starts enabled (default `true`) |

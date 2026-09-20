@@ -51,8 +51,15 @@ export class LayoutManager {
   // options (shell process only): { Clutter, settings, primaryMonitor, monitors }.
   // Clutter is passed in because it is unavailable in the prefs process, which
   // only edits layout. primaryMonitor() and monitors() return the shell's
-  // { x, y, width, height } rectangles; they are how new widgets are kept on
-  // the primary monitor.
+  // { x, y, width, height } rectangles; they keep widgets on the primary
+  // monitor.
+  //
+  // Saved positions are measured from the primary monitor's top-left corner,
+  // while getLayout()/setLayout() speak screen coordinates. So when the
+  // primary monitor changes (dock/undock), widgets follow it, and relayout()
+  // puts them back where they belong. A widget that no longer fits on any
+  // monitor is only *shown* moved onto the primary one: its saved position is
+  // kept, so it returns to its spot when the monitor comes back.
   constructor(options = {}) {
     this._Clutter = options.Clutter ?? null;
     this._settings = options.settings ?? null;
@@ -61,12 +68,25 @@ export class LayoutManager {
     const saved = _readJSON(STORAGE_PATH) || {};
     this._layout = saved.widgets || {};
     this._meta = saved.meta || { mode: 'absolute', snapToGrid: true, gridSize: 32 };
+    // Older versions saved screen coordinates: make them primary-relative once.
+    // Only the shell knows the primary monitor, so the prefs process leaves it.
+    if (!this._meta.primaryRelative && this._primaryMonitor) {
+      const o = this._primaryRect();
+      for (const layout of Object.values(this._layout)) {
+        layout.x -= o.x;
+        layout.y -= o.y;
+      }
+      this._meta.primaryRelative = true;
+      this._save();
+    }
     // Bundled widget sizes are multiples of 32: move the old 20 px default over once
     if (!this._meta.gridV2) {
       if (this._meta.gridSize === 20) this._meta.gridSize = 32;
       this._meta.gridV2 = true;
     }
     this._dragging = {};
+    this._actors = {};
+    this._shown = {};
     this._widgetHooks = {};
     this._seeded = 0;
     this._activeDrag = null;
@@ -76,12 +96,16 @@ export class LayoutManager {
   destroy() {
     this._endDrag(false);
     this._widgetHooks = {};
+    this._actors = {};
+    this._shown = {};
   }
 
   // Forget a widget that was deleted for good.
   remove(widgetId) {
     delete this._layout[widgetId];
     delete this._widgetHooks[widgetId];
+    delete this._actors[widgetId];
+    delete this._shown[widgetId];
     this._save();
   }
 
@@ -104,8 +128,14 @@ export class LayoutManager {
     _writeJSON(STORAGE_PATH, { widgets: this._layout, meta: this._meta });
   }
 
+  // Screen coordinates of where the widget belongs on the current primary
+  // monitor (which is not always where it is shown, see _place).
   getLayout(widgetId, defaults) {
-    if (this._layout[widgetId]) return this._layout[widgetId];
+    const saved = this._layout[widgetId];
+    if (saved) {
+      const o = this._primaryRect();
+      return { ...saved, x: saved.x + o.x, y: saved.y + o.y };
+    }
     return {
       x: defaults?.x ?? 20,
       y: defaults?.y ?? 20,
@@ -117,6 +147,19 @@ export class LayoutManager {
 
   setLayout(widgetId, layout) {
     const finalLayout = { ...this.getLayout(widgetId), ...layout };
+    const o = this._primaryRect();
+    finalLayout.x -= o.x;
+    finalLayout.y -= o.y;
+
+    // A widget resizing itself reports the position it is shown at. If that
+    // is a stand-in for a spot that is off-screen, keep the saved spot.
+    const prev = this._layout[widgetId];
+    const shown = this._shown[widgetId];
+    if (prev && shown && layout.x === shown.x && layout.y === shown.y) {
+      finalLayout.x = prev.x;
+      finalLayout.y = prev.y;
+    }
+
     if (this._meta.snapToGrid) {
       finalLayout.x = this._snap(finalLayout.x);
       finalLayout.y = this._snap(finalLayout.y);
@@ -222,11 +265,11 @@ export class LayoutManager {
       : { x: 0, y: 0, width: 1920, height: 1080 };
   }
 
-  // Does the rectangle show up on any monitor at all?
+  // Does the rectangle fit inside a single monitor?
   _isOnScreen(x, y, width, height) {
     const monitors = this._monitors?.() ?? [this._primaryRect()];
-    return monitors.some((m) => x < m.x + m.width && x + width > m.x &&
-      y < m.y + m.height && y + height > m.y);
+    return monitors.some((m) => x >= m.x && y >= m.y &&
+      x + width <= m.x + m.width && y + height <= m.y + m.height);
   }
 
   // A default position is given relative to the primary monitor's top-left
@@ -251,18 +294,13 @@ export class LayoutManager {
     // Never positioned (or seeded with the old identical stack): place it on
     // the primary monitor. Without a manifest position, cascade so widgets
     // don't all land on the same spot.
-    if (!saved || (this._isLegacySeed(saved) && manifest?.x !== undefined)) {
+    if (!saved || (this._isLegacySeed(this.getLayout(widgetId)) && manifest?.x !== undefined)) {
       const offset = 20 + this._seeded++ * 30;
       delete this._layout[widgetId];
       const width = manifest?.width;
       const height = manifest?.height;
       const at = this._onPrimary(manifest?.x ?? offset, manifest?.y ?? offset, width, height);
       this.setLayout(widgetId, this.getLayout(widgetId, { ...at, width, height }));
-    } else if (!this._isOnScreen(saved.x, saved.y, saved.width || 200, saved.height || 80)) {
-      // Saved for a monitor that is gone (or a smaller screen): bring it back
-      const at = this._onPrimary(saved.x - this._primaryRect().x, saved.y - this._primaryRect().y,
-        saved.width, saved.height);
-      this.setLayout(widgetId, at);
     }
 
     // A widget whose author changed its size (a redesign) says so by raising
@@ -277,14 +315,43 @@ export class LayoutManager {
     }
 
     if (actor) {
+      this._actors[widgetId] = actor;
+      actor.connect('destroy', () => {
+        if (this._actors[widgetId] !== actor) return;
+        delete this._actors[widgetId];
+        delete this._shown[widgetId];
+      });
+      this._place(widgetId, actor);
       const layout = this.getLayout(widgetId);
-      if (this._meta.mode === 'grid' && this._meta.snapToGrid)
-        actor.set_position(this._snap(layout.x), this._snap(layout.y));
-      else
-        actor.set_position(layout.x, layout.y);
       if (layout.width) actor.set_size(layout.width, layout.height);
       this._makeDraggableResizer(widgetId, actor);
     }
+  }
+
+  // Put the actor where its widget belongs. One that would not fit on any
+  // monitor (e.g. after undocking) is shown on the primary one instead,
+  // without changing the saved position.
+  _place(widgetId, actor) {
+    const layout = this.getLayout(widgetId);
+    const o = this._primaryRect();
+    let x = layout.x;
+    let y = layout.y;
+    if (this._meta.mode === 'grid' && this._meta.snapToGrid) {
+      x = o.x + this._snap(x - o.x);
+      y = o.y + this._snap(y - o.y);
+    }
+    const width = layout.width || 200;
+    const height = layout.height || 80;
+    if (!this._isOnScreen(x, y, width, height))
+      ({ x, y } = this._onPrimary(x - o.x, y - o.y, width, height));
+    actor.set_position(x, y);
+    this._shown[widgetId] = { x, y };
+  }
+
+  // The monitors were rearranged or the primary one changed
+  relayout() {
+    for (const [widgetId, actor] of Object.entries(this._actors))
+      this._place(widgetId, actor);
   }
 
   _dragModifierMask() {
@@ -322,6 +389,7 @@ export class LayoutManager {
     const layout = this.getLayout(drag.widgetId);
     drag.actor.set_position(layout.x, layout.y);
     drag.actor.set_size(layout.width, layout.height);
+    this._shown[drag.widgetId] = { x: layout.x, y: layout.y };
     this._callWidgetHook(drag.widgetId, 'onDragEnd', layout);
   }
 

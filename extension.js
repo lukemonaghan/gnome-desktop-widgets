@@ -21,6 +21,7 @@ export default class DesktopWidgetsExtension extends Extension {
     this._menu = null;
     this._registryMonitor = null;
     this._syncSourceId = 0;
+    this._monitorsChangedId = 0;
   }
 
   // Desktop widgets belong above the wallpaper but below application windows.
@@ -62,6 +63,10 @@ export default class DesktopWidgetsExtension extends Extension {
   _createInstance(id, initialState) {
     this._registry.reload();
     const layout = this._widgets[id]?._getCurrentLayout() ?? {};
+    // A widget's position is measured from the primary monitor's corner
+    const primary = Main.layoutManager.primaryMonitor;
+    if (layout.x !== undefined) layout.x -= primary?.x ?? 0;
+    if (layout.y !== undefined) layout.y -= primary?.y ?? 0;
     try {
       const clone = this._registry.cloneWidget(id, {
         x: layout.x !== undefined ? layout.x + 30 : undefined,
@@ -158,6 +163,10 @@ export default class DesktopWidgetsExtension extends Extension {
     });
     this._menu = new WidgetContextMenu();
 
+    // Dock/undock: keep the widgets on the primary monitor
+    this._monitorsChangedId = Main.layoutManager.connect('monitors-changed',
+      () => this._layout?.relayout());
+
     for (const widget of this._registry.getAllWidgets()) {
       if (!widget.enabled) continue;
       try {
@@ -183,6 +192,11 @@ export default class DesktopWidgetsExtension extends Extension {
     }
     this._registryMonitor?.cancel();
     this._registryMonitor = null;
+
+    if (this._monitorsChangedId) {
+      Main.layoutManager.disconnect(this._monitorsChangedId);
+      this._monitorsChangedId = 0;
+    }
 
     this._menu?.destroy();
     this._menu = null;

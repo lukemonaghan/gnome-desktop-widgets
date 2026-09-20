@@ -7,6 +7,7 @@ JavaScript files that build St (Shell toolkit) actors.
 ![Bundled widgets on a GNOME desktop](docs/screenshot.png)
 
 - [Install and develop](#install-and-develop)
+  - [Source layout](#source-layout)
 - [Using widgets](#using-widgets)
 - [Bundled widgets](#bundled-widgets)
 - [Writing a widget](#writing-a-widget)
@@ -44,11 +45,29 @@ JavaScript files that build St (Shell toolkit) actors.
   a widget's `render`, `update` or `onClick` are logged there and never crash
   the shell.
 
+### Source layout
+
+| File | Role |
+|---|---|
+| `extension.js` | Entry point: creates the widgets, the layout manager and the right-click menu |
+| `widget-engine.js` | Runs one widget: builds `ctx` and `api`, calls the hooks, handles drag and clicks |
+| `sandbox.js` | Token check and the small set of globals a script gets |
+| `layout-manager.js` | Positions, sizes, snapping and the drag key |
+| `store.js`, `importer.js`, `default-library.js` | Registry of widgets, importing folders and archives, installing the bundled widgets |
+| `ui-kit.js` | `ctx.ui`: theme, rings, bars, graphs and free drawing |
+| `rich-text.js` | `ctx.createRichText`: text with inline images |
+| `context-menu.js` | The popup for `api.menu` |
+| `media.js` | `api.media`: MPRIS players over D-Bus |
+| `network.js` | `api.network`: async requests, the download cache |
+| `prefs.js` | The preferences window |
+| `default-widgets/<name>/` | The bundled widgets: `metadata.json` (manifest) and `index.js` (script), plus optional `assets/` |
+
 ## Using widgets
 
-Open the extension's preferences to enable widgets, import your own (folder,
-`.zip`, `.tar`/`.tgz`), add more copies of widgets that allow it (sticky notes,
-cards), and change layout settings.
+Open the extension's preferences to enable widgets, import your own (**Import
+Folder** or **Import Archive**: `.zip`, `.tar`/`.tgz`), reinstall the bundled ones
+(**Install Defaults**), add more copies of widgets that allow it (sticky notes,
+MTG cards), and change layout settings.
 
 | Setting | Meaning |
 |---|---|
@@ -63,25 +82,28 @@ Right-click a widget for its own menu, if it offers one (see
 ## Bundled widgets
 
 All are off by default; enable them in preferences. Most have a right-click menu.
+The Permissions column is what each widget's manifest asks for (see
+[Sandbox](#sandbox-trust-and-permissions)).
 
-| Widget | What it does |
-|---|---|
-| Analog Clock | Drawn clock face with an optional second hand and minute marks |
-| Digital Clock | Large time with seconds and the date |
-| World Clock | Four cities with a day/night dot. Right-click to choose each city |
-| Countdown Timer, Pomodoro Timer | Progress rings. Click to start or pause; right-click for length, reset or skip |
-| Monthly Calendar | Month grid; right-click to change month |
-| Calendar Agenda | Today's agenda (sample events) |
-| Sticky Note | Checklist or free text, in nine colours; add as many as you like |
-| Quote of the Day | A quote on an indigo card |
-| RSS News Feed | Headlines from any RSS or Atom feed |
-| Weather Summary | Current weather from Open-Meteo, located from your IP or a city you pick |
-| System Monitor | CPU graph, clock speed, temperature, load, memory, swap, disk and uptime. Right-click to show or hide each; the widget resizes to fit |
-| Battery Status, Network Throughput | Live system readings |
-| Media Controls | Cover art, title and transport buttons for any MPRIS player |
-| Image Slideshow | Cross-fading pictures from the wallpaper folders |
-| Random MTG Card | A random Magic card from Scryfall, or one you choose |
-| Search Launcher | A search bar that only mimics a launcher |
+| Widget | What it does | Permissions |
+|---|---|---|
+| Analog Clock | Drawn clock face with a sweeping second hand and minute marks | |
+| Digital Clock | Large time with seconds and the date | |
+| World Clock | Four cities with a day/night dot. Right-click to choose each city, 24-hour time or open GNOME Clocks | |
+| Countdown Timer, Pomodoro Timer | Progress rings. Click to start or pause; right-click for length, restart, reset or skip | |
+| Monthly Calendar | Month grid with today highlighted; right-click to change month | |
+| Calendar Agenda | Today's agenda (sample events) | |
+| Sticky Note | Checklist or free text, in nine colours; add as many as you like | |
+| Quote of the Day | A quote on an indigo card. Right-click for the previous or next quote, or to copy it | |
+| RSS News Feed | Headlines from any RSS or Atom feed. Click for the next headline; right-click to set, add or remove feeds | network |
+| Weather Summary | Current weather from Open-Meteo with generated icons, located from your IP or a city you pick. Right-click for units | network |
+| System Monitor | CPU graph, clock speed, temperature, load, memory, swap, disk and uptime. Right-click to show or hide each; the widget resizes to fit | |
+| Battery Status | Charge as a ring, with the state and time remaining | |
+| Network Throughput | Live download and upload speed with 60 second graphs | |
+| Media Controls | Cover art, title, progress and transport buttons for any MPRIS player | media, network |
+| Image Slideshow | Cross-fading pictures from the wallpaper folders. Right-click for timing, pause and captions | |
+| Random MTG Card | A random Magic card from Scryfall, or one you choose. Hover for details and prices; click for another; add more copies | network |
+| Search Launcher | A search bar that only mimics a launcher | |
 
 ## Writing a widget
 
@@ -528,7 +550,8 @@ Under `$XDG_DATA_HOME/gnome-desktop-widgets/` (usually `~/.local/share/…`):
 | `widgets/<id>/` | An imported widget's files |
 | `widgets/<id>/state.json` | `api.state` for that instance |
 | `widgets/<id>/data/` | `api.fs` root for that instance |
-| `default-library/widgets/<id>/` | Installed copies of the bundled widgets |
+| `default-library/widgets/<id>/` | Installed copies of the bundled widgets (`widget.json` and `widget.js`, made from `metadata.json` and `index.js`) |
+| `.default-installed` | The `DEFAULTS_VERSION` last installed |
 
 Under `$XDG_CACHE_HOME/gnome-desktop-widgets/<id>/` (usually `~/.cache/…`):
 files saved by `api.network.download`.

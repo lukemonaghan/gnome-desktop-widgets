@@ -24,6 +24,7 @@ JavaScript files that build St (Shell toolkit) actors.
   - [Complete example](#complete-example)
 - [Files on disk](#files-on-disk)
 - [Limitations](#limitations)
+- [License](#license)
 
 ## Install and develop
 
@@ -575,3 +576,9 @@ The Drag Key is a GSettings key: `dconf`/`gsettings` path
   they are starting points for real implementations.
 - The Weather widget guesses your place from your IP address (ipwho.is) the
   first time it runs; that is often a nearby suburb. Right-click → Set location…
+
+## License
+
+Copyright © 2026 Luke Monaghan. Licensed under the GNU General Public License,
+version 2 or (at your option) any later version. See [LICENSE](LICENSE).
+Widgets you write for it are your own work and may use any license.

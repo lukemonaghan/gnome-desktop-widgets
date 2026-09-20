@@ -31,6 +31,7 @@ export class WidgetContextMenu {
     const menu = new PopupMenu.PopupMenu(Main.layoutManager.dummyCursor, 0, St.Side.TOP);
     Main.layoutManager.uiGroup.add_child(menu.actor);
     menu.actor.hide();
+    this._allowNestedSubmenus(menu);
 
     // What was picked runs once the menu has closed, so an action that grabs
     // the keyboard or opens something else does not fight the menu's own grab.
@@ -59,6 +60,35 @@ export class WidgetContextMenu {
     this._manager = new PopupMenu.PopupMenuManager(ownerActor ?? Main.layoutManager.dummyCursor);
     this._manager.addMenu(menu);
     menu.open(BoxPointer.PopupAnimation.FULL);
+  }
+
+  // The shell keeps one "open submenu" per menu and closes it whenever another
+  // opens, so a submenu inside a submenu shuts its own parent. Only close the
+  // open submenus that the new one is not inside of.
+  _allowNestedSubmenus(menu) {
+    const inside = (sub, of) => {
+      for (let m = sub; m; m = m._parent) if (m === of) return true;
+      return false;
+    };
+
+    menu._setOpenedSubMenu = (submenu) => {
+      const open = menu._openedSubMenu;
+      if (!submenu) {
+        // One closed: one inside it goes too, and the submenu around it, if
+        // any, is the open one again
+        let m = open;
+        while (m?._parent && m._parent !== menu && !m._parent.isOpen) {
+          m.close(false);
+          m = m._parent;
+        }
+        const outer = m?._parent;
+        menu._openedSubMenu = outer && outer !== menu && outer.isOpen ? outer : null;
+        return;
+      }
+      for (let m = open; m && m !== menu && !inside(submenu, m); m = m._parent)
+        m.close(true);
+      menu._openedSubMenu = submenu;
+    };
   }
 
   _fill(menu, items, chosen) {

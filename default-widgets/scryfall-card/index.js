@@ -1,11 +1,14 @@
 // MTG Card Widget
 // Shows a Magic: The Gathering card from Scryfall (https://scryfall.com/docs/api).
 //
-//   Hover        rules text (mana symbols drawn as pictures), printing, prices
+//   Hover        set, prices and legality (the card itself shows the rest); in
+//                art-only view also rules text (mana symbols drawn as pictures)
 //   Click        another random card (unless a card was set)
-//   Right click  menu: random card, set a card, art only, Scryfall, add/remove
+//   Right click  menu: random card, filters, set a card, art only, Scryfall, add/remove
 //
 // "Add another card" makes a second copy of the widget, each with its own card.
+// Filters (colour, legendary, type, rarity, format) narrow the random cards
+// using Scryfall's search syntax; changing one draws a new card.
 // "Set card" takes a card name (fuzzy: "lightning bolt") or "set/number"
 // ("mh3/123") and keeps that card until a random one is asked for. The card,
 // the choice of set-or-random and art-or-card are remembered across restarts.
@@ -23,6 +26,14 @@ var PAD_X = 24;                  // the engine's default widget padding
 var PAD_Y = 16;
 
 var FORMATS = ['standard', 'pioneer', 'modern', 'legacy', 'vintage', 'commander', 'pauper'];
+var COLOURS = [
+  ['w', 'White'], ['u', 'Blue'], ['b', 'Black'], ['r', 'Red'], ['g', 'Green'],
+  ['c', 'Colourless'], ['m', 'Multicolour'],
+];
+var TYPES = [
+  'creature', 'instant', 'sorcery', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle',
+];
+var RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 var RARITY_COLOURS = {
   common: '#c8c8c8', uncommon: '#9cc2d6', rare: '#e6c257', mythic: '#f28c38',
 };
@@ -39,12 +50,56 @@ var entryNote;
 var card = null;       // the card on show (see slim())
 var cardMode = 'random';   // 'random' (click for another) or 'fixed' (set by the user)
 var view = 'card';     // 'card' (whole card) or 'art' (artwork only)
+var filters = emptyFilters();   // what random cards may be
 var imagePath = null;
 var symbolPaths = {};  // "{G}" -> downloaded SVG
 var busy = false;
 var editing = false;
 var lastRequest = 0;
 var fitted = '';
+
+// ── filters ─────────────────────────────────────────────────────────
+
+function emptyFilters() {
+  return { colours: [], legendary: false, type: '', rarity: '', format: '' };
+}
+
+// Saved state may be from an older version or hand edited: keep only known values
+function cleanFilters(f) {
+  var out = emptyFilters();
+  if (!f || typeof f !== 'object') return out;
+  var codes = COLOURS.map(function (c) { return c[0]; });
+  if (Array.isArray(f.colours))
+    out.colours = codes.filter(function (c) { return f.colours.indexOf(c) >= 0; });
+  out.legendary = f.legendary === true;
+  if (TYPES.indexOf(f.type) >= 0) out.type = f.type;
+  if (RARITIES.indexOf(f.rarity) >= 0) out.rarity = f.rarity;
+  if (FORMATS.indexOf(f.format) >= 0) out.format = f.format;
+  return out;
+}
+
+function filterCount() {
+  return filters.colours.length + (filters.legendary ? 1 : 0) +
+    (filters.type ? 1 : 0) + (filters.rarity ? 1 : 0) + (filters.format ? 1 : 0);
+}
+
+// Scryfall search: https://scryfall.com/docs/syntax. Several colours mean "any of".
+function filterQuery() {
+  var parts = [];
+  if (filters.colours.length) {
+    var any = filters.colours.map(function (c) { return 'c:' + c; }).join(' or ');
+    parts.push(filters.colours.length > 1 ? '(' + any + ')' : any);
+  }
+  if (filters.legendary) parts.push('t:legendary');
+  if (filters.type) parts.push('t:' + filters.type);
+  if (filters.rarity) parts.push('r:' + filters.rarity);
+  if (filters.format) parts.push('f:' + filters.format);
+  return parts.join(' ');
+}
+
+function capital(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
 
 // ── data ────────────────────────────────────────────────────────────
 
@@ -143,7 +198,11 @@ function buildDetails(ctx, c) {
   // Single-faced cards carry their text at the top level; double-faced,
   // split and adventure cards only on each face.
   var faces = c.card_faces && c.card_faces.length && !c.oracle_text ? c.card_faces : [c];
-  faces.forEach(function (f, i) {
+
+  // The whole card is on show, so its text is not repeated here. Only the
+  // back of a double-faced card (a second image) is not visible.
+  var hidden = view === 'card' ? (c.image_uris ? faces.length : 1) : 0;
+  faces.slice(hidden).forEach(function (f, i) {
     if (i > 0) details.add_child(text(ctx, '───────', DIM));
 
     var head = new St.BoxLayout({ x_expand: true, style: 'spacing: 8px;' });
@@ -165,14 +224,22 @@ function buildDetails(ctx, c) {
       details.add_child(text(ctx, 'Loyalty ' + f.loyalty, 'font-weight: bold;'));
   });
 
-  var rarity = c.rarity || '';
-  details.add_child(text(ctx,
-    (c.set_name || '') + ' (' + String(c.set || '').toUpperCase() + ') #' + c.collector_number,
-    'font-size: 9pt; margin-top: 4px;'));
-  details.add_child(text(ctx,
-    rarity.charAt(0).toUpperCase() + rarity.slice(1) + '  ·  ' + (c.released_at || ''),
-    'font-size: 9pt; color: ' + (RARITY_COLOURS[rarity] || '#ffffff') + ';'));
-  if (c.artist) details.add_child(text(ctx, 'Illustrated by ' + c.artist, DIM));
+  var top = hidden < faces.length ? ' margin-top: 4px;' : '';
+  if (view === 'art') {
+    var rarity = c.rarity || '';
+    details.add_child(text(ctx,
+      (c.set_name || '') + ' (' + String(c.set || '').toUpperCase() + ') #' + c.collector_number,
+      'font-size: 9pt;' + top));
+    details.add_child(text(ctx,
+      rarity.charAt(0).toUpperCase() + rarity.slice(1) + '  ·  ' + (c.released_at || ''),
+      'font-size: 9pt; color: ' + (RARITY_COLOURS[rarity] || '#ffffff') + ';'));
+    if (c.artist) details.add_child(text(ctx, 'Illustrated by ' + c.artist, DIM));
+  } else {
+    // The card shows the set code and number, not the set's name or date
+    details.add_child(text(ctx,
+      (c.set_name || '') + (c.released_at ? '  ·  ' + c.released_at : ''),
+      'font-size: 9pt;' + top));
+  }
 
   var p = c.prices || {};
   details.add_child(text(ctx,
@@ -228,6 +295,14 @@ function resizeForView(api) {
 function setStatus(message) {
   status.text = message || '';
   status.visible = !!message;
+}
+
+// A message over the card that goes away by itself
+function flash(message) {
+  setStatus(message);
+  setTimeout(function () {
+    if (card && status && status.text === message) setStatus(null);
+  }, 3000);
 }
 
 function syncOverlay() {
@@ -321,7 +396,18 @@ function request(ctx, api, url, mode, done) {
 function loadRandom(ctx, api, force) {
   if (busy || (!force && Date.now() - lastRequest < MIN_REQUEST_GAP_MS)) return;
   if (!card) setStatus('Loading…');
-  request(ctx, api, API + '/cards/random', 'random');
+  var query = filterQuery();
+  var url = API + '/cards/random' + (query ? '?q=' + encodeURIComponent(query) : '');
+  request(ctx, api, url, 'random', function (error) {
+    if (error && card) flash(query ? 'No card matches these filters' : error);
+  });
+}
+
+// Filters only shape random cards, so changing one asks for a new one
+function setFilters(ctx, api, next) {
+  filters = next;
+  api.state.set('filters', filters);
+  loadRandom(ctx, api, true);
 }
 
 function setCard(ctx, api, query) {
@@ -382,9 +468,81 @@ function stopEditing(api) {
 
 // ── widget ──────────────────────────────────────────────────────────
 
+// The shell's popup menu closes a submenu when another one opens inside it, so
+// nothing here is nested more than one level deep.
+function filterItems(ctx, api) {
+  function change(edit) {
+    var next = cleanFilters(filters);
+    edit(next);
+    setFilters(ctx, api, next);
+  }
+
+  function current(key) {
+    return filters[key] ? ': ' + capital(filters[key]) : '';
+  }
+
+  // One choice out of a list; picking the current one (or "Any") clears it
+  function choice(key, values, label) {
+    return [{
+      label: 'Any',
+      checked: !filters[key],
+      onSelect: function () { change(function (f) { f[key] = ''; }); },
+    }].concat(values.map(function (v) {
+      return {
+        label: label ? label(v) : capital(v),
+        checked: filters[key] === v,
+        onSelect: function () { change(function (f) { f[key] = v; }); },
+      };
+    }));
+  }
+
+  return [
+    {
+      label: 'Colour' + (filters.colours.length ? ' (' + filters.colours.length + ')' : ''),
+      items: COLOURS.map(function (c) {
+        return {
+          label: c[1],
+          checked: filters.colours.indexOf(c[0]) >= 0,
+          onSelect: function () {
+            change(function (f) {
+              var at = f.colours.indexOf(c[0]);
+              if (at >= 0) f.colours.splice(at, 1);
+              else f.colours.push(c[0]);
+            });
+          },
+        };
+      }).concat([
+        { separator: true },
+        {
+          label: 'Any colour',
+          enabled: filters.colours.length > 0,
+          onSelect: function () { change(function (f) { f.colours = []; }); },
+        },
+      ]),
+    },
+    {
+      label: 'Legendary',
+      checked: filters.legendary,
+      onSelect: function () { change(function (f) { f.legendary = !f.legendary; }); },
+    },
+    { label: 'Type' + current('type'), items: choice('type', TYPES) },
+    { label: 'Rarity' + current('rarity'), items: choice('rarity', RARITIES) },
+    { label: 'Legal in' + current('format'), items: choice('format', FORMATS) },
+    { separator: true },
+    {
+      label: 'Clear filters',
+      enabled: filterCount() > 0,
+      onSelect: function () { setFilters(ctx, api, emptyFilters()); },
+    },
+  ];
+}
+
 function menuItems(ctx, api) {
   return [
     { label: 'Random card', onSelect: function () { loadRandom(ctx, api, true); } },
+    { separator: true },
+  ].concat(filterItems(ctx, api)).concat([
+    { separator: true },
     { label: 'Set card…', onSelect: function () { startEditing(ctx, api); } },
     { separator: true },
     {
@@ -404,13 +562,13 @@ function menuItems(ctx, api) {
       },
     },
     { separator: true },
-    { label: 'Add another card', onSelect: function () { api.instances.create({ view: view }); } },
+    { label: 'Add another card', onSelect: function () { api.instances.create({ view: view, filters: filters }); } },
     {
       label: 'Remove this card',
       enabled: api.instances.count() > 1,
       onSelect: function () { api.instances.remove(); },
     },
-  ];
+  ]);
 }
 
 function render(ctx, api) {
@@ -419,6 +577,7 @@ function render(ctx, api) {
 
   cardMode = api.state.get('mode') === 'fixed' ? 'fixed' : 'random';
   view = api.state.get('view') === 'art' ? 'art' : 'card';
+  filters = cleanFilters(api.state.get('filters'));
 
   root = new St.Widget({
     layout_manager: new Clutter.BinLayout(),
@@ -434,7 +593,8 @@ function render(ctx, api) {
   status = new St.Label({
     text: '', visible: false,
     x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER,
-    style: 'text-align: center;',
+    style: 'text-align: center; padding: 8px 12px; margin: 12px; border-radius: 8px;' +
+      ' background-color: rgba(10, 10, 16, 0.85);',
   });
   root.add_child(status);
 

@@ -103,7 +103,7 @@ The Permissions column is what each widget's manifest asks for (see
 | Network Throughput | Live download and upload speed with 60 second graphs | |
 | Media Controls | Cover art, title, progress and transport buttons for any MPRIS player | media, network |
 | Image Slideshow | Cross-fading pictures from the wallpaper folders. Right-click for timing, pause and captions | |
-| Random MTG Card | A random Magic card from Scryfall, or one you choose. Hover for details and prices; click for another; add more copies | network |
+| Random MTG Card | A random Magic card from Scryfall, or one you choose. Hover for set, prices and legality; click for another; right-click to filter random cards (colour, legendary, type, rarity, format), show art only, or add more copies | network |
 | Search Launcher | A search bar that only mimics a launcher | |
 
 ## Writing a widget
@@ -451,7 +451,7 @@ in its manifest. Preferences has no widget-specific buttons of its own.
 
 | Call | Description |
 |---|---|
-| `api.instances.create(initialState)` | Add another copy just below and to the right of this one. `initialState` is optional: a plain object the copy's `api.state` starts with (the Random MTG Card widget passes its view). Without it the copy starts blank |
+| `api.instances.create(initialState)` | Add another copy just below and to the right of this one. `initialState` is optional: a plain object the copy's `api.state` starts with (the Random MTG Card widget passes its view and filters). Without it the copy starts blank |
 | `api.instances.remove()` | Delete this instance; returns `false` and does nothing if it is the last one. The original is hidden rather than deleted, since it owns the script folder |
 | `api.instances.count()` | How many instances are on the desktop |
 

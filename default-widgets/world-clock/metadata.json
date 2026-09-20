@@ -1,9 +1,9 @@
 {
   "id": "default-world-clock",
   "display_name": "World Clock",
-  "description": "Multi-zone world time display.",
+  "description": "Local time in four cities, with a day/night indicator.",
   "type": "text",
-  "bg_color": "#00443380",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,9 +12,10 @@
     "world"
   ],
   "script": "index.js",
-  "x": 580,
+  "x": 360,
   "y": 40,
-  "width": 260,
-  "height": 120,
-  "drag_region": "background"
+  "width": 288,
+  "height": 192,
+  "drag_region": "background",
+  "layout_revision": 3
 }

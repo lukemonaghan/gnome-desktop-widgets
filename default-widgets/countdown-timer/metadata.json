@@ -1,9 +1,9 @@
 {
   "id": "default-countdown-timer",
   "display_name": "Countdown Timer",
-  "description": "Configurable countdown timer.",
+  "description": "A countdown ring. Click to pause; right-click to choose the length.",
   "type": "text",
-  "bg_color": "#ff990080",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,9 +12,10 @@
     "countdown"
   ],
   "script": "index.js",
-  "x": 1060,
-  "y": 300,
-  "width": 220,
-  "height": 80,
-  "drag_region": "background"
+  "x": 360,
+  "y": 480,
+  "width": 192,
+  "height": 192,
+  "drag_region": "background",
+  "layout_revision": 4
 }

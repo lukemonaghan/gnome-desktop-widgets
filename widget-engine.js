@@ -3,11 +3,15 @@ import GLib from 'gi://GLib';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
+import GdkPixbuf from 'gi://GdkPixbuf';
 import Shell from 'gi://Shell';
-import Soup from 'gi://Soup?version=3.0';
 import UPowerGlib from 'gi://UPowerGlib?version=1.0';
 import { GrabHelper } from 'resource:///org/gnome/shell/ui/grabHelper.js';
 import { WidgetSandbox } from './sandbox.js';
+import { WidgetNetwork, cacheDirFor } from './network.js';
+import { WidgetMedia } from './media.js';
+import { createRichText } from './rich-text.js';
+import { createUi } from './ui-kit.js';
 
 // ---------------------------------------------------------------------------
 // Shared 1-second system poller — single GLib timer for all widget instances.
@@ -133,6 +137,10 @@ function _loadState(widgetId) {
   } catch { return {}; }
 }
 
+export function saveWidgetState(widgetId, state) {
+  _saveState(widgetId, state);
+}
+
 function _saveState(widgetId, state) {
   try {
     const path = _statePathFor(widgetId);
@@ -168,7 +176,10 @@ export class WidgetInstance {
     this._persistedState = _loadState(manifest.id);
     this._ctx = null;
     this._api = null;
-    this._soupSession = null;
+    this._network = null;
+    this._media = null;
+    this._menuItems = null;
+    this._resizeSourceId = 0;
     this.onActorReady = null;
     this._reloadSourceId = 0;
     this._grabHelper = null;
@@ -185,6 +196,7 @@ export class WidgetInstance {
       Gio,
       GLib,
       Pango,
+      GdkPixbuf,
 
       box,
 
@@ -202,6 +214,20 @@ export class WidgetInstance {
         } else {
           this._dragRegions.delete(actor);
         }
+      },
+      // Text with inline images (e.g. "{G}" as a symbol); see README
+      createRichText: (text, options) => createRichText(text, options),
+
+      // Design tokens plus rings, bars, graphs and free drawing; see README
+      ui: createUi(),
+
+      // Absolute path of a file in the widget's assets/ folder (null if the
+      // name tries to leave it)
+      assetPath: (name) => {
+        const rel = String(name);
+        if (rel.startsWith('/') || rel.split('/').includes('..') || !this.manifest.installedPath)
+          return null;
+        return `${this.manifest.installedPath}/assets/${rel}`;
       },
       setSize: (w, h) => {
         box.set_size(w, h);
@@ -326,13 +352,24 @@ export class WidgetInstance {
 
       // --- Multiple instances of this widget (e.g. sticky notes) ---
       instances: {
-        // Add another copy of this widget
-        create: () => this._actions.create?.(this.manifest.id),
+        // Add another copy of this widget. `initialState` (a plain object) is
+        // what the copy's api.state starts with; leave it out for a blank one.
+        create: (initialState) => this._actions.create?.(this.manifest.id, initialState),
         // Delete this instance; refused (false) when it is the last one
         remove: () => this._actions.remove?.(this.manifest.id) ?? false,
         // How many instances of this widget are currently on the desktop
         count: () => this._actions.count?.(this.manifest.id) ?? 1,
       },
+
+      // --- Right-click menu ---
+      // menu.set(items) or menu.set(() => items): the function form is called
+      // on every right click, so labels and check marks can follow the state.
+      menu: {
+        set: (items) => { this._menuItems = items; },
+      },
+
+      // --- Now playing (permission-gated) ---
+      media: this._buildMediaApi(permissions, trusted),
 
       // --- Network (permission-gated) ---
       network: this._buildNetworkApi(permissions, trusted),
@@ -344,48 +381,28 @@ export class WidgetInstance {
     return api;
   }
 
+  _buildMediaApi(permissions, trusted) {
+    if (!(trusted || permissions.has('media'))) {
+      const blocked = () => { throw new Error('Media access requires "media" permission'); };
+      return { get: blocked, playPause: blocked, next: blocked, previous: blocked, raise: blocked };
+    }
+    this._media = new WidgetMedia();
+    return this._media.api();
+  }
+
   _buildNetworkApi(permissions, trusted) {
     const allowed = trusted || permissions.has('network');
     const blocked = () => { throw new Error('Network access requires "network" permission'); };
 
     if (!allowed) {
-      return { fetch: blocked, fetchJSON: blocked };
+      return {
+        fetch: blocked, fetchJSON: blocked,
+        fetchAsync: blocked, fetchJSONAsync: blocked, download: blocked,
+      };
     }
 
-    const fetchUrl = (url, options) => {
-      try {
-        if (!this._soupSession) {
-          this._soupSession = new Soup.Session();
-        }
-        const method = (options && options.method) || 'GET';
-        const message = Soup.Message.new(method, url);
-        if (!message) return { ok: false, status: 0, body: null };
-
-        if (options && options.headers) {
-          const headers = message.get_request_headers();
-          for (const [k, v] of Object.entries(options.headers)) {
-            headers.append(k, v);
-          }
-        }
-
-        const bytes = this._soupSession.send_and_read(message, null);
-        const status = message.get_status();
-        const body = bytes ? new TextDecoder().decode(bytes.get_data()) : '';
-        return { ok: status >= 200 && status < 300, status, body };
-      } catch (e) {
-        log(`DesktopWidgets network fetch failed: ${e}`);
-        return { ok: false, status: 0, body: null };
-      }
-    };
-
-    return {
-      fetch: fetchUrl,
-      fetchJSON: (url) => {
-        const result = fetchUrl(url);
-        if (!result.ok || !result.body) return null;
-        try { return JSON.parse(result.body); } catch { return null; }
-      },
-    };
+    this._network = new WidgetNetwork(this.manifest.id, cacheDirFor(this.manifest.cloneOf || this.manifest.id));
+    return this._network.api();
   }
 
   _buildFsApi(permissions, trusted) {
@@ -458,6 +475,7 @@ export class WidgetInstance {
     box.set_style(`${css.join('; ')};`);
 
     // Build ctx and api
+    this._menuItems = null;
     this._ctx = this._buildCtx(box);
     this._api = this._buildApi();
 
@@ -469,6 +487,21 @@ export class WidgetInstance {
 
     this.actor = box;
 
+    // onResize(ctx, api, width, height): whenever the widget's size changes
+    // (the user resizing it, a layout being applied, setSize). Coalesced into
+    // one call per frame so a drag does not flood the script.
+    const notifyResize = () => {
+      if (this._resizeSourceId) return;
+      this._resizeSourceId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        this._resizeSourceId = 0;
+        if (this.actor === box && this._sandbox)
+          this._sandbox.callOnResize(box.get_width(), box.get_height());
+        return GLib.SOURCE_REMOVE;
+      });
+    };
+    box.connect('notify::width', notifyResize);
+    box.connect('notify::height', notifyResize);
+
     // "drag_region": "background" — the whole widget moves with a plain drag
     if (this.manifest.drag_region === 'background') this._ctx.setDragRegion(box);
 
@@ -478,6 +511,7 @@ export class WidgetInstance {
 
     // Let the owner position and parent the actor (also after reload())
     if (this.onActorReady) this.onActorReady(box);
+    notifyResize();
 
     return box;
   }
@@ -500,6 +534,17 @@ export class WidgetInstance {
       }
     } catch (e) {
       log(`DesktopWidgets: cannot render static widget ${this.manifest.id}: ${e}`);
+    }
+  }
+
+  // The items for a right click, as set through api.menu.set()
+  getContextMenu() {
+    try {
+      const items = typeof this._menuItems === 'function' ? this._menuItems() : this._menuItems;
+      return Array.isArray(items) ? items : [];
+    } catch (e) {
+      log(`DesktopWidgets [${this.manifest.id}] context menu failed: ${e}`);
+      return [];
     }
   }
 
@@ -576,6 +621,14 @@ export class WidgetInstance {
       GLib.source_remove(sourceId);
     }
     this._timers = {};
+
+    // Requests still in flight must not call back into a stopped widget
+    this._network?.cancelAll();
+    this._media?.stop();
+    if (this._resizeSourceId) {
+      GLib.source_remove(this._resizeSourceId);
+      this._resizeSourceId = 0;
+    }
   }
 
   _onSystemPoll(data) {
@@ -613,9 +666,11 @@ export class WidgetInstance {
       this._fileMonitor.cancel();
       this._fileMonitor = null;
     }
-    if (this._soupSession) {
-      this._soupSession = null;
+    if (this._network) {
+      this._network.destroy();
+      this._network = null;
     }
+    this._media?.stop();
     if (this.actor) {
       this.actor.destroy();
       this.actor = null;

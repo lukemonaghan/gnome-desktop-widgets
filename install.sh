@@ -69,6 +69,10 @@ if [ "$SYSTEM" != "yes" ]; then
       cp "$dir/index.js" "$LIB/$id/widget.js"
       echo "Hot-reloaded widget script: $id"
     fi
+    if [ -n "$id" ] && [ -d "$LIB/$id" ] && [ -d "$dir/assets" ]; then
+      mkdir -p "$LIB/$id/assets"
+      cp -r "$dir/assets/." "$LIB/$id/assets/"
+    fi
   done
 fi
 

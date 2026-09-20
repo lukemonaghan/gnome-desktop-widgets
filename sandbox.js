@@ -91,6 +91,7 @@ export class WidgetSandbox {
           render: typeof render === 'function' ? render : undefined,
           update: typeof update === 'function' ? update : undefined,
           onClick: typeof onClick === 'function' ? onClick : undefined,
+          onResize: typeof onResize === 'function' ? onResize : undefined,
           onDestroy: typeof onDestroy === 'function' ? onDestroy : undefined,
         };
       `;
@@ -133,6 +134,15 @@ export class WidgetSandbox {
       this._widget.onClick(this.ctx, this.api);
     } catch (e) {
       log(`DesktopWidgets sandbox onClick() failed for ${this.manifest.id}: ${e}`);
+    }
+  }
+
+  callOnResize(width, height) {
+    if (!this._widget || typeof this._widget.onResize !== 'function') return;
+    try {
+      this._widget.onResize(this.ctx, this.api, width, height);
+    } catch (e) {
+      log(`DesktopWidgets sandbox onResize() failed for ${this.manifest.id}: ${e}`);
     }
   }
 

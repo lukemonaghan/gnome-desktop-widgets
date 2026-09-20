@@ -1,9 +1,9 @@
 {
   "id": "default-analog-clock",
   "display_name": "Analog Clock",
-  "description": "A simple analog clock widget.",
+  "description": "A drawn analog clock face with a sweeping second hand.",
   "type": "text",
-  "bg_color": "#22222280",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,9 +12,10 @@
     "time"
   ],
   "script": "index.js",
-  "x": 340,
-  "y": 40,
-  "width": 220,
-  "height": 100,
-  "drag_region": "background"
+  "x": 360,
+  "y": 260,
+  "width": 192,
+  "height": 192,
+  "drag_region": "background",
+  "layout_revision": 3
 }

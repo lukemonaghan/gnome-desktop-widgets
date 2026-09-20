@@ -1,7 +1,7 @@
 {
   "id": "default-todo",
   "display_name": "Sticky Note",
-  "description": "A sticky note checklist. Click the box to type, Enter to add, + for another note.",
+  "description": "A sticky note, either a checklist or free text. Click to type; right-click to change colour or convert between the two.",
   "type": "text",
   "bg_color": "#ffe066",
   "enabled": false,
@@ -12,9 +12,13 @@
     "note"
   ],
   "script": "index.js",
-  "x": 580,
-  "y": 300,
-  "width": 280,
-  "height": 260,
-  "permissions": []
+  "x": 1340,
+  "y": 440,
+  "width": 288,
+  "height": 256,
+  "permissions": [],
+  "instances": {
+    "add_label": "New Sticky Note"
+  },
+  "layout_revision": 3
 }

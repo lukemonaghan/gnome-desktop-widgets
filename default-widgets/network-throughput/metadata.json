@@ -1,9 +1,9 @@
 {
   "id": "default-network-throughput",
   "display_name": "Network Throughput",
-  "description": "Network speed monitor.",
+  "description": "Live download and upload speed with 60 second graphs.",
   "type": "text",
-  "bg_color": "#33006680",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,9 +12,10 @@
     "speed"
   ],
   "script": "index.js",
-  "x": 600,
-  "y": 180,
-  "width": 240,
-  "height": 80,
-  "drag_region": "background"
+  "x": 40,
+  "y": 380,
+  "width": 288,
+  "height": 160,
+  "drag_region": "background",
+  "layout_revision": 3
 }

@@ -1,9 +1,9 @@
 {
   "id": "default-battery",
   "display_name": "Battery Status",
-  "description": "Battery level indicator.",
+  "description": "Battery charge as a ring, with the state and time remaining.",
   "type": "text",
-  "bg_color": "#00110080",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,9 +12,10 @@
     "power"
   ],
   "script": "index.js",
-  "x": 320,
-  "y": 180,
-  "width": 260,
-  "height": 80,
-  "drag_region": "background"
+  "x": 40,
+  "y": 560,
+  "width": 288,
+  "height": 96,
+  "drag_region": "background",
+  "layout_revision": 3
 }

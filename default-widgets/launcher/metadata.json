@@ -1,9 +1,9 @@
 {
   "id": "default-launcher",
   "display_name": "Search Launcher",
-  "description": "Quick search launcher widget.",
+  "description": "A search bar. Mimics a launcher; a click is only logged.",
   "type": "text",
-  "bg_color": "#00000080",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,9 +12,10 @@
     "launcher"
   ],
   "script": "index.js",
-  "x": 380,
-  "y": 580,
-  "width": 300,
-  "height": 60,
-  "drag_region": "background"
+  "x": 360,
+  "y": 720,
+  "width": 352,
+  "height": 64,
+  "drag_region": "background",
+  "layout_revision": 3
 }

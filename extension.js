@@ -6,9 +6,10 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { getRegistry } from './store.js';
-import { WidgetInstance } from './widget-engine.js';
+import { WidgetInstance, saveWidgetState } from './widget-engine.js';
 import { LayoutManager } from './layout-manager.js';
 import { installDefaultWidgets } from './default-library.js';
+import { WidgetContextMenu } from './context-menu.js';
 
 export default class DesktopWidgetsExtension extends Extension {
   constructor(metadata) {
@@ -17,6 +18,7 @@ export default class DesktopWidgetsExtension extends Extension {
     this._layout = null;
     this._settings = null;
     this._widgets = {};
+    this._menu = null;
     this._registryMonitor = null;
     this._syncSourceId = 0;
   }
@@ -34,9 +36,10 @@ export default class DesktopWidgetsExtension extends Extension {
     this._layout.registerWidgetHooks(widget.id, {
       onClick: () => engine.click(),
       isDragRegion: (actor) => engine.isDragRegion(actor),
+      onContextMenu: (x, y) => this._menu?.show(engine.getContextMenu(), x, y, engine.actor),
     });
     engine._actions = {
-      create: (id) => this._createInstance(id),
+      create: (id, state) => this._createInstance(id, state),
       remove: (id) => this._removeInstance(id),
       count: (id) => this._familyEnabled(id).length,
     };
@@ -56,16 +59,19 @@ export default class DesktopWidgetsExtension extends Extension {
   }
 
   // Add another copy of a widget just below and to the right of the original.
-  _createInstance(id) {
+  _createInstance(id, initialState) {
     this._registry.reload();
     const layout = this._widgets[id]?._getCurrentLayout() ?? {};
     try {
-      this._registry.cloneWidget(id, {
+      const clone = this._registry.cloneWidget(id, {
         x: layout.x !== undefined ? layout.x + 30 : undefined,
         y: layout.y !== undefined ? layout.y + 30 : undefined,
         width: layout.width,
         height: layout.height,
       });
+      // Written before the copy starts, which reads its state then
+      if (initialState && typeof initialState === 'object')
+        saveWidgetState(clone.id, JSON.parse(JSON.stringify(initialState)));
     } catch (e) {
       log(`Desktop Widgets: cannot create another ${id}: ${e}`);
       return;
@@ -144,7 +150,13 @@ export default class DesktopWidgetsExtension extends Extension {
     this._registry = getRegistry();
     installDefaultWidgets();
     this._settings = this.getSettings();
-    this._layout = new LayoutManager({ Clutter, settings: this._settings });
+    this._layout = new LayoutManager({
+      Clutter,
+      settings: this._settings,
+      primaryMonitor: () => Main.layoutManager.primaryMonitor,
+      monitors: () => Main.layoutManager.monitors,
+    });
+    this._menu = new WidgetContextMenu();
 
     for (const widget of this._registry.getAllWidgets()) {
       if (!widget.enabled) continue;
@@ -171,6 +183,9 @@ export default class DesktopWidgetsExtension extends Extension {
     }
     this._registryMonitor?.cancel();
     this._registryMonitor = null;
+
+    this._menu?.destroy();
+    this._menu = null;
 
     for (const engine of Object.values(this._widgets))
       engine.destroy();

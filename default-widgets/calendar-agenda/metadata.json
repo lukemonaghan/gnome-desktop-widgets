@@ -1,9 +1,9 @@
 {
   "id": "default-calendar-agenda",
   "display_name": "Calendar Agenda",
-  "description": "Agenda items for today.",
+  "description": "Today's agenda (sample events) with the current one highlighted.",
   "type": "text",
-  "bg_color": "#cccccc80",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,10 +12,10 @@
     "calendar"
   ],
   "script": "index.js",
-  "x": 300,
-  "y": 300,
-  "width": 260,
-  "height": 140,
+  "x": 920,
+  "y": 340,
+  "width": 288,
+  "height": 224,
   "drag_region": "background",
-  "text_color": "#1a1a1a"
+  "layout_revision": 3
 }

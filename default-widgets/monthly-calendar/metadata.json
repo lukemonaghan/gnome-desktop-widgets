@@ -1,9 +1,9 @@
 {
   "id": "default-monthly-calendar",
   "display_name": "Monthly Calendar",
-  "description": "Calendar month overview with today highlighted.",
+  "description": "A month grid with today highlighted. Right-click to change month.",
   "type": "text",
-  "bg_color": "#ffffff80",
+  "bg_color": "#faf8f2eb",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,10 +12,11 @@
     "date"
   ],
   "script": "index.js",
-  "x": 860,
+  "x": 920,
   "y": 40,
-  "width": 300,
-  "height": 200,
+  "width": 288,
+  "height": 288,
   "drag_region": "background",
-  "text_color": "#1a1a1a"
+  "text_color": "#23252b",
+  "layout_revision": 3
 }

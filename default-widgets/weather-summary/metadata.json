@@ -1,9 +1,9 @@
 {
   "id": "default-weather-summary",
   "display_name": "Weather Summary",
-  "description": "Local weather summary.",
+  "description": "Current weather from Open-Meteo with generated icons. Finds your location from your IP address, or right-click to pick a city. Click to refresh.",
   "type": "text",
-  "bg_color": "#0066cc80",
+  "bg_color": "#3d8fe0",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,8 +12,12 @@
   ],
   "script": "index.js",
   "x": 40,
-  "y": 300,
-  "width": 240,
-  "height": 100,
-  "drag_region": "background"
+  "y": 680,
+  "width": 288,
+  "height": 160,
+  "drag_region": "background",
+  "layout_revision": 3,
+  "permissions": [
+    "network"
+  ]
 }

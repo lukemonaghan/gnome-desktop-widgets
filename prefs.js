@@ -173,7 +173,9 @@ export default class DesktopWidgetsPrefs extends ExtensionPreferences {
     this._sidebarList.append(row);
   }
 
-  _rebuildSidebar() {
+  // Rebuild the widget rows and pages. `select` is the id of the widget whose
+  // page to show afterwards (Settings when omitted or gone).
+  _rebuildSidebar(select = null) {
     if (!this._sidebarList || !this._stack) return;
 
     // Remove widget rows (indices 0=Settings, 1=caption, 2+=widgets)
@@ -195,10 +197,13 @@ export default class DesktopWidgetsPrefs extends ExtensionPreferences {
       this._appendWidgetRow(widget);
     }
 
-    // Fall back to settings
-    const first = this._sidebarList.get_row_at_index(0);
-    if (first) this._sidebarList.select_row(first);
-    this._stack.set_visible_child_name('settings');
+    // Show the requested widget's page, else Settings
+    let target = this._sidebarList.get_row_at_index(0);
+    for (let i = 2, r; (r = this._sidebarList.get_row_at_index(i)); i++) {
+      if (select && r._stackName === `widget-${select}`) target = r;
+    }
+    if (target) this._sidebarList.select_row(target);
+    this._stack.set_visible_child_name(target?._stackName ?? 'settings');
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -274,15 +279,6 @@ export default class DesktopWidgetsPrefs extends ExtensionPreferences {
       catch (e) { logError(e, 'Install defaults failed'); }
     });
 
-    const noteBtn = new Gtk.Button({ label: 'New Sticky Note' });
-    noteBtn.connect('clicked', () => {
-      try {
-        this._registry.reload();
-        this._registry.cloneWidget('default-todo');
-        this._rebuildSidebar();
-      } catch (e) { logError(e, 'New sticky note failed'); }
-    });
-
     const folderBtn = new Gtk.Button({ label: 'Import Folder' });
     folderBtn.add_css_class('suggested-action');
     folderBtn.connect('clicked', () => this._importFolder());
@@ -291,7 +287,6 @@ export default class DesktopWidgetsPrefs extends ExtensionPreferences {
     archiveBtn.connect('clicked', () => this._importArchive());
 
     btnBox.append(installBtn);
-    btnBox.append(noteBtn);
     btnBox.append(folderBtn);
     btnBox.append(archiveBtn);
     box.append(btnBox);
@@ -349,6 +344,23 @@ export default class DesktopWidgetsPrefs extends ExtensionPreferences {
 
     // Actions
     const actBox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 8, margin_top: 8 });
+
+    // A widget that can run several copies (sticky notes, cards…) names the
+    // button itself with "instances": { "add_label": "…" } in its manifest.
+    // Copies made earlier carry an older manifest, so ask their original.
+    const spec = widget.instances ?? this._registry.getWidget(widget.cloneOf)?.instances;
+    if (spec?.add_label) {
+      const addBtn = new Gtk.Button({ label: String(spec.add_label) });
+      addBtn.add_css_class('suggested-action');
+      addBtn.connect('clicked', () => {
+        try {
+          this._registry.reload();
+          const created = this._registry.cloneWidget(widget.id);
+          this._rebuildSidebar(created.id);
+        } catch (e) { logError(e, `${spec.add_label} failed`); }
+      });
+      actBox.append(addBtn);
+    }
 
     const exportBtn = new Gtk.Button({ label: 'Export' });
     exportBtn.connect('clicked', () => {

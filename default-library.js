@@ -19,6 +19,27 @@ function _writeFile(path, content) {
   f.replace_contents(content, null, false, Gio.FileCreateFlags.NONE, null);
 }
 
+// Copy a folder tree (a widget's assets/), replacing files that are there
+function _copyTree(srcPath, destPath) {
+  const src = Gio.File.new_for_path(srcPath);
+  if (!src.query_exists(null)) return;
+  const dest = Gio.File.new_for_path(destPath);
+  if (!dest.query_exists(null)) dest.make_directory_with_parents(null);
+
+  const en = src.enumerate_children('standard::name,standard::type',
+    Gio.FileQueryInfoFlags.NONE, null);
+  let info;
+  while ((info = en.next_file(null))) {
+    const name = info.get_name();
+    if (info.get_file_type() === Gio.FileType.DIRECTORY) {
+      _copyTree(`${srcPath}/${name}`, `${destPath}/${name}`);
+    } else {
+      src.get_child(name).copy(dest.get_child(name), Gio.FileCopyFlags.OVERWRITE,
+        null, null);
+    }
+  }
+}
+
 function _scanDefaultWidgets() {
   const widgets = [];
   const srcDir = Gio.File.new_for_path(DEFAULT_WIDGETS_SRC);
@@ -57,7 +78,7 @@ export function getDefaultWidgets() {
 
 // Bump when the bundled widgets change (script API, geometry, ...) so already
 // installed copies are refreshed on the next enable.
-const DEFAULTS_VERSION = '5';
+const DEFAULTS_VERSION = '11';
 
 export function installDefaultWidgets() {
   const registry = getRegistry();
@@ -94,6 +115,9 @@ export function installDefaultWidgets() {
     if (scriptSrc) {
       _writeFile(`${widgetDir}/widget.js`, scriptSrc);
     }
+
+    // Bundled images and the like: reachable through ctx.assetPath()
+    _copyTree(`${srcDir}/assets`, `${widgetDir}/assets`);
 
     const widgetCopy = {
       ...manifest,

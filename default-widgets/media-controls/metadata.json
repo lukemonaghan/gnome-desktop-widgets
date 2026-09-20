@@ -1,9 +1,9 @@
 {
   "id": "default-media-controls",
   "display_name": "Media Controls",
-  "description": "Play/pause/next media controller.",
+  "description": "What is playing in any media player (Spotify, Firefox, Rhythmbox, ...): cover art, title, artist, transport buttons and progress.",
   "type": "text",
-  "bg_color": "#22222280",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -11,9 +11,14 @@
     "media"
   ],
   "script": "index.js",
-  "x": 40,
-  "y": 460,
-  "width": 240,
-  "height": 80,
-  "drag_region": "background"
+  "x": 580,
+  "y": 500,
+  "width": 288,
+  "height": 128,
+  "drag_region": "background",
+  "layout_revision": 3,
+  "permissions": [
+    "media",
+    "network"
+  ]
 }

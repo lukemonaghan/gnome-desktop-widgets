@@ -1,10 +1,10 @@
 {
   "id": "default-slideshow",
   "display_name": "Image Slideshow",
-  "description": "Rotating image slideshow.",
+  "description": "Cross-fading pictures from the system wallpaper folders. Click for the next.",
   "type": "image",
   "image": "file:///usr/share/backgrounds/gnome/adwaita-day.jpg",
-  "bg_color": "#00000080",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -13,9 +13,10 @@
     "image"
   ],
   "script": "index.js",
-  "x": 40,
-  "y": 580,
+  "x": 1340,
+  "y": 720,
   "width": 320,
-  "height": 240,
-  "drag_region": "background"
+  "height": 224,
+  "drag_region": "background",
+  "layout_revision": 3
 }

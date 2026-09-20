@@ -1,9 +1,9 @@
 {
   "id": "default-rss-news",
   "display_name": "RSS News Feed",
-  "description": "Latest headline from RSS feed.",
+  "description": "Headlines from any RSS or Atom feed. Right-click to set or add feeds, open the article or refresh; click for the next headline.",
   "type": "text",
-  "bg_color": "#33221180",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,9 +12,13 @@
     "news"
   ],
   "script": "index.js",
-  "x": 680,
-  "y": 460,
-  "width": 300,
-  "height": 80,
-  "drag_region": "background"
+  "x": 920,
+  "y": 760,
+  "width": 384,
+  "height": 160,
+  "drag_region": "background",
+  "layout_revision": 3,
+  "permissions": [
+    "network"
+  ]
 }

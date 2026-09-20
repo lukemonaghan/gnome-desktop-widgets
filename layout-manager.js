@@ -48,14 +48,24 @@ function _writeJSON(path, obj) {
 }
 
 export class LayoutManager {
-  // options (shell process only): { Clutter, settings }. Clutter is passed in
-  // because it is unavailable in the prefs process, which only edits layout.
+  // options (shell process only): { Clutter, settings, primaryMonitor, monitors }.
+  // Clutter is passed in because it is unavailable in the prefs process, which
+  // only edits layout. primaryMonitor() and monitors() return the shell's
+  // { x, y, width, height } rectangles; they are how new widgets are kept on
+  // the primary monitor.
   constructor(options = {}) {
     this._Clutter = options.Clutter ?? null;
     this._settings = options.settings ?? null;
+    this._primaryMonitor = options.primaryMonitor ?? null;
+    this._monitors = options.monitors ?? null;
     const saved = _readJSON(STORAGE_PATH) || {};
     this._layout = saved.widgets || {};
-    this._meta = saved.meta || { mode: 'absolute', snapToGrid: true, gridSize: 20 };
+    this._meta = saved.meta || { mode: 'absolute', snapToGrid: true, gridSize: 32 };
+    // Bundled widget sizes are multiples of 32: move the old 20 px default over once
+    if (!this._meta.gridV2) {
+      if (this._meta.gridSize === 20) this._meta.gridSize = 32;
+      this._meta.gridV2 = true;
+    }
     this._dragging = {};
     this._widgetHooks = {};
     this._seeded = 0;
@@ -118,7 +128,7 @@ export class LayoutManager {
   }
 
   _snap(value) {
-    const grid = Math.max(1, this._meta.gridSize || 20);
+    const grid = Math.max(1, this._meta.gridSize || 32);
     return Math.round(value / grid) * grid;
   }
 
@@ -134,7 +144,7 @@ export class LayoutManager {
   }
 
   setGridSize(size) {
-    this._meta.gridSize = Math.max(1, Number(size) || 20);
+    this._meta.gridSize = Math.max(1, Number(size) || 32);
     this._save();
   }
 
@@ -151,14 +161,13 @@ export class LayoutManager {
   }
 
   autoArrange(widgetInfoList) {
-    const margin = this._meta.gridSize || 20;
+    const margin = this._meta.gridSize || 32;
     let currentX = margin;
     let currentY = margin;
     let maxHeight = 0;
 
-    const screenWidth = (typeof global !== 'undefined' && global.display)
-      ? global.display.get_primary_monitor().width
-      : 1920;
+    const primary = this._primaryRect();
+    const screenWidth = primary.width;
 
     widgetInfoList.forEach((info) => {
       const layout = this.getLayout(info.id);
@@ -171,7 +180,7 @@ export class LayoutManager {
         maxHeight = 0;
       }
 
-      this.setLayout(info.id, { x: currentX, y: currentY, width, height });
+      this.setLayout(info.id, { x: primary.x + currentX, y: primary.y + currentY, width, height });
 
       maxHeight = Math.max(maxHeight, height);
       currentX += width + margin;
@@ -179,11 +188,9 @@ export class LayoutManager {
   }
 
   alignWidgets(widgetInfoList, alignment) {
-    const primaryMonitor = (typeof global !== 'undefined' && global.display)
-      ? global.display.get_primary_monitor()
-      : null;
-    const screenWidth = primaryMonitor ? primaryMonitor.width : 1920;
-    const screenHeight = primaryMonitor ? primaryMonitor.height : 1080;
+    const primary = this._primaryRect();
+    const screenWidth = primary.width;
+    const screenHeight = primary.height;
 
     widgetInfoList.forEach((info) => {
       const layout = this.getLayout(info.id);
@@ -191,13 +198,13 @@ export class LayoutManager {
       let x = layout.x;
       let y = layout.y;
 
-      if (alignment === 'left') x = 20;
-      else if (alignment === 'right') x = screenWidth - (layout.width || 200) - 20;
-      else if (alignment === 'top') y = 20;
-      else if (alignment === 'bottom') y = screenHeight - (layout.height || 80) - 20;
+      if (alignment === 'left') x = primary.x + 20;
+      else if (alignment === 'right') x = primary.x + screenWidth - (layout.width || 200) - 20;
+      else if (alignment === 'top') y = primary.y + 20;
+      else if (alignment === 'bottom') y = primary.y + screenHeight - (layout.height || 80) - 20;
       else if (alignment === 'center') {
-        x = Math.max(20, Math.round((screenWidth - (layout.width || 200)) / 2));
-        y = Math.max(20, Math.round((screenHeight - (layout.height || 80)) / 2));
+        x = primary.x + Math.max(20, Math.round((screenWidth - (layout.width || 200)) / 2));
+        y = primary.y + Math.max(20, Math.round((screenHeight - (layout.height || 80)) / 2));
       }
 
       this.setLayout(info.id, { x, y });
@@ -208,19 +215,65 @@ export class LayoutManager {
     return layout && Object.keys(LEGACY_SEED).every((k) => layout[k] === LEGACY_SEED[k]);
   }
 
+  // The primary monitor's rectangle (a plain 1920x1080 outside the shell)
+  _primaryRect() {
+    const r = this._primaryMonitor?.();
+    return r ? { x: r.x, y: r.y, width: r.width, height: r.height }
+      : { x: 0, y: 0, width: 1920, height: 1080 };
+  }
+
+  // Does the rectangle show up on any monitor at all?
+  _isOnScreen(x, y, width, height) {
+    const monitors = this._monitors?.() ?? [this._primaryRect()];
+    return monitors.some((m) => x < m.x + m.width && x + width > m.x &&
+      y < m.y + m.height && y + height > m.y);
+  }
+
+  // A default position is given relative to the primary monitor's top-left
+  // corner; return it in screen coordinates, moved so the widget fits on it.
+  _onPrimary(x, y, width, height) {
+    const p = this._primaryRect();
+    const w = width || 200;
+    const h = height || 80;
+    // With snap-to-grid the position gets rounded later, so the farthest
+    // allowed position is rounded *down* to a grid line to stay on screen
+    const step = this._meta.snapToGrid ? Math.max(1, this._meta.gridSize || 32) : 1;
+    const farthest = (room) => Math.max(0, Math.floor(room / step) * step);
+    return {
+      x: Math.round(p.x + Math.max(0, Math.min(x, farthest(p.width - w)))),
+      y: Math.round(p.y + Math.max(0, Math.min(y, farthest(p.height - h)))),
+    };
+  }
+
   apply(widgetId, actor, manifest) {
-    const saved = this._layout[widgetId];
+    let saved = this._layout[widgetId];
+
+    // Never positioned (or seeded with the old identical stack): place it on
+    // the primary monitor. Without a manifest position, cascade so widgets
+    // don't all land on the same spot.
     if (!saved || (this._isLegacySeed(saved) && manifest?.x !== undefined)) {
-      // Fall back to a cascade so widgets without a manifest position
-      // don't all land on the same spot.
       const offset = 20 + this._seeded++ * 30;
       delete this._layout[widgetId];
-      this.setLayout(widgetId, this.getLayout(widgetId, {
-        x: manifest?.x ?? offset,
-        y: manifest?.y ?? offset,
-        width: manifest?.width,
-        height: manifest?.height,
-      }));
+      const width = manifest?.width;
+      const height = manifest?.height;
+      const at = this._onPrimary(manifest?.x ?? offset, manifest?.y ?? offset, width, height);
+      this.setLayout(widgetId, this.getLayout(widgetId, { ...at, width, height }));
+    } else if (!this._isOnScreen(saved.x, saved.y, saved.width || 200, saved.height || 80)) {
+      // Saved for a monitor that is gone (or a smaller screen): bring it back
+      const at = this._onPrimary(saved.x - this._primaryRect().x, saved.y - this._primaryRect().y,
+        saved.width, saved.height);
+      this.setLayout(widgetId, at);
+    }
+
+    // A widget whose author changed its size (a redesign) says so by raising
+    // layout_revision; the new size is applied once, then the user's own
+    // resizing wins again.
+    const revision = manifest?.layout_revision || 0;
+    if (revision && (this._layout[widgetId].rev || 0) < revision) {
+      const size = { rev: revision };
+      if (manifest.width) size.width = manifest.width;
+      if (manifest.height) size.height = manifest.height;
+      this.setLayout(widgetId, size);
     }
 
     if (actor) {
@@ -363,7 +416,16 @@ export class LayoutManager {
       const type = event.type();
 
       if (type === Clutter.EventType.BUTTON_PRESS) {
-        if (event.get_button() !== 1) return EVENT_PROPAGATE;
+        const button = event.get_button();
+
+        // Right click: the widget's context menu (see api.menu)
+        if (button === Clutter.BUTTON_SECONDARY) {
+          this._pendingClick = null;
+          const [x, y] = event.get_coords();
+          this._callWidgetHook(widgetId, 'onContextMenu', x, y);
+          return EVENT_STOP;
+        }
+        if (button !== 1) return EVENT_PROPAGATE;
 
         if (event.get_state() & this._dragModifierMask()) {
           this._pendingClick = null;

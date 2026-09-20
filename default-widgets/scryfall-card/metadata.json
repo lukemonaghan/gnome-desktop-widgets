@@ -1,0 +1,29 @@
+{
+  "id": "default-scryfall-card",
+  "display_name": "Random MTG Card",
+  "description": "A Magic: The Gathering card from Scryfall, random or one you set. Hover for details and prices, click for another card, right-click for more (art only, add more cards).",
+  "type": "text",
+  "bg_color": "#00000066",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "magic",
+    "mtg",
+    "scryfall",
+    "cards"
+  ],
+  "script": "index.js",
+  "x": 1340,
+  "y": 40,
+  "width": 256,
+  "height": 352,
+  "drag_region": "background",
+  "permissions": [
+    "network"
+  ],
+  "instances": {
+    "add_label": "Add Another Card"
+  },
+  "layout_revision": 3
+}

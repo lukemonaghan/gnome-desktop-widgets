@@ -1,9 +1,9 @@
 {
   "id": "default-quote",
   "display_name": "Quote of the Day",
-  "description": "Daily inspirational quote.",
+  "description": "A quote of the day on an indigo card. Click or right-click for others.",
   "type": "text",
-  "bg_color": "#ffffff80",
+  "bg_color": "#3b3a8f",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
@@ -12,10 +12,10 @@
     "inspiration"
   ],
   "script": "index.js",
-  "x": 300,
-  "y": 460,
-  "width": 360,
-  "height": 100,
+  "x": 920,
+  "y": 580,
+  "width": 384,
+  "height": 160,
   "drag_region": "background",
-  "text_color": "#1a1a1a"
+  "layout_revision": 3
 }

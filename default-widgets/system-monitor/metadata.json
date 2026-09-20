@@ -1,21 +1,24 @@
 {
   "id": "default-system-monitor",
   "display_name": "System Monitor",
-  "description": "CPU and memory usage display.",
+  "description": "CPU graph, clock speed, temperature, load, memory, swap, disk and uptime. Right-click to choose what to show; the widget resizes to fit.",
   "type": "text",
-  "bg_color": "#11000080",
+  "bg_color": "#16181fd1",
   "enabled": false,
   "version": "1.0",
   "author": "Default",
   "tags": [
     "system",
     "cpu",
-    "ram"
+    "ram",
+    "temperature",
+    "disk"
   ],
   "script": "index.js",
   "x": 40,
   "y": 180,
-  "width": 260,
-  "height": 80,
-  "drag_region": "background"
+  "width": 288,
+  "height": 246,
+  "drag_region": "background",
+  "layout_revision": 4
 }

@@ -1,0 +1,9 @@
+{
+  "uuid": "gnome-desktop-widgets@lukem",
+  "name": "GNOME Desktop Widgets",
+  "description": "GNOME Shell Widgets.",
+  "version": 1,
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "settings-schema": "org.gnome.shell.extensions.gnome-desktop-widgets",
+  "url": "https://github.com/yourname/gnome-desktop-widgets"
+}

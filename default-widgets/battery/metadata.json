@@ -1,0 +1,20 @@
+{
+  "id": "default-battery",
+  "display_name": "Battery Status",
+  "description": "Battery level indicator.",
+  "type": "text",
+  "bg_color": "#00110080",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "battery",
+    "power"
+  ],
+  "script": "index.js",
+  "x": 320,
+  "y": 180,
+  "width": 260,
+  "height": 80,
+  "drag_region": "background"
+}

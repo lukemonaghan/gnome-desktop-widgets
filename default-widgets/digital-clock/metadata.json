@@ -1,0 +1,21 @@
+{
+  "id": "default-digital-clock",
+  "display_name": "Digital Clock",
+  "description": "Digital clock display.",
+  "type": "text",
+  "bg_color": "#00000090",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "clock",
+    "time",
+    "digital"
+  ],
+  "script": "index.js",
+  "x": 40,
+  "y": 40,
+  "width": 280,
+  "height": 100,
+  "drag_region": "background"
+}

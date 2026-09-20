@@ -1,0 +1,21 @@
+{
+  "id": "default-slideshow",
+  "display_name": "Image Slideshow",
+  "description": "Rotating image slideshow.",
+  "type": "image",
+  "image": "file:///usr/share/backgrounds/gnome/adwaita-day.jpg",
+  "bg_color": "#00000080",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "slideshow",
+    "image"
+  ],
+  "script": "index.js",
+  "x": 40,
+  "y": 580,
+  "width": 320,
+  "height": 240,
+  "drag_region": "background"
+}

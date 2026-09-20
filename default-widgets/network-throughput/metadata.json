@@ -1,0 +1,20 @@
+{
+  "id": "default-network-throughput",
+  "display_name": "Network Throughput",
+  "description": "Network speed monitor.",
+  "type": "text",
+  "bg_color": "#33006680",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "network",
+    "speed"
+  ],
+  "script": "index.js",
+  "x": 600,
+  "y": 180,
+  "width": 240,
+  "height": 80,
+  "drag_region": "background"
+}

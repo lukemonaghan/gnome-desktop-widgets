@@ -1,0 +1,20 @@
+{
+  "id": "default-world-clock",
+  "display_name": "World Clock",
+  "description": "Multi-zone world time display.",
+  "type": "text",
+  "bg_color": "#00443380",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "clock",
+    "world"
+  ],
+  "script": "index.js",
+  "x": 580,
+  "y": 40,
+  "width": 260,
+  "height": 120,
+  "drag_region": "background"
+}

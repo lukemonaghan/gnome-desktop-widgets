@@ -1,0 +1,21 @@
+{
+  "id": "default-monthly-calendar",
+  "display_name": "Monthly Calendar",
+  "description": "Calendar month overview with today highlighted.",
+  "type": "text",
+  "bg_color": "#ffffff80",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "calendar",
+    "date"
+  ],
+  "script": "index.js",
+  "x": 860,
+  "y": 40,
+  "width": 300,
+  "height": 200,
+  "drag_region": "background",
+  "text_color": "#1a1a1a"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "default-todo",
+  "display_name": "Sticky Note",
+  "description": "A sticky note checklist. Click the box to type, Enter to add, + for another note.",
+  "type": "text",
+  "bg_color": "#ffe066",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "todo",
+    "note"
+  ],
+  "script": "index.js",
+  "x": 580,
+  "y": 300,
+  "width": 280,
+  "height": 260,
+  "permissions": []
+}

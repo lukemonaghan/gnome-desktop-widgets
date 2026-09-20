@@ -1,0 +1,20 @@
+{
+  "id": "default-countdown-timer",
+  "display_name": "Countdown Timer",
+  "description": "Configurable countdown timer.",
+  "type": "text",
+  "bg_color": "#ff990080",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "timer",
+    "countdown"
+  ],
+  "script": "index.js",
+  "x": 1060,
+  "y": 300,
+  "width": 220,
+  "height": 80,
+  "drag_region": "background"
+}

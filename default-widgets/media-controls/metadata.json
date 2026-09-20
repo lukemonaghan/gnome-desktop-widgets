@@ -1,0 +1,19 @@
+{
+  "id": "default-media-controls",
+  "display_name": "Media Controls",
+  "description": "Play/pause/next media controller.",
+  "type": "text",
+  "bg_color": "#22222280",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "media"
+  ],
+  "script": "index.js",
+  "x": 40,
+  "y": 460,
+  "width": 240,
+  "height": 80,
+  "drag_region": "background"
+}

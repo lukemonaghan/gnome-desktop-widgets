@@ -1,0 +1,21 @@
+{
+  "id": "default-system-monitor",
+  "display_name": "System Monitor",
+  "description": "CPU and memory usage display.",
+  "type": "text",
+  "bg_color": "#11000080",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "system",
+    "cpu",
+    "ram"
+  ],
+  "script": "index.js",
+  "x": 40,
+  "y": 180,
+  "width": 260,
+  "height": 80,
+  "drag_region": "background"
+}

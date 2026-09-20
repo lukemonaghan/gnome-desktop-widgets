@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.gnome-desktop-widgets" path="/org/gnome/shell/extensions/gnome-desktop-widgets/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Enable extension</summary>
+      <description>Toggle the extension state.</description>
+    </key>
+    <key name="drag-modifier" type="s">
+      <choices>
+        <choice value="alt"/>
+        <choice value="super"/>
+        <choice value="ctrl"/>
+        <choice value="shift"/>
+      </choices>
+      <default>'alt'</default>
+      <summary>Modifier key for moving widgets</summary>
+      <description>Hold this key while dragging anywhere on a widget to move it (or, from the bottom-right corner, to resize it). Widgets can also offer their own drag regions that need no key.</description>
+    </key>
+  </schema>
+</schemalist>

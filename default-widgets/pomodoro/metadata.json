@@ -1,0 +1,20 @@
+{
+  "id": "default-pomodoro",
+  "display_name": "Pomodoro Timer",
+  "description": "Work/break cycle timer.",
+  "type": "text",
+  "bg_color": "#aa000080",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "pomodoro",
+    "productivity"
+  ],
+  "script": "index.js",
+  "x": 840,
+  "y": 300,
+  "width": 200,
+  "height": 80,
+  "drag_region": "background"
+}

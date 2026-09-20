@@ -1,0 +1,21 @@
+{
+  "id": "default-calendar-agenda",
+  "display_name": "Calendar Agenda",
+  "description": "Agenda items for today.",
+  "type": "text",
+  "bg_color": "#cccccc80",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "agenda",
+    "calendar"
+  ],
+  "script": "index.js",
+  "x": 300,
+  "y": 300,
+  "width": 260,
+  "height": 140,
+  "drag_region": "background",
+  "text_color": "#1a1a1a"
+}

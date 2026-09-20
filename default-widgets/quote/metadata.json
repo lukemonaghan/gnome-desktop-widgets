@@ -1,0 +1,21 @@
+{
+  "id": "default-quote",
+  "display_name": "Quote of the Day",
+  "description": "Daily inspirational quote.",
+  "type": "text",
+  "bg_color": "#ffffff80",
+  "enabled": false,
+  "version": "1.0",
+  "author": "Default",
+  "tags": [
+    "quote",
+    "inspiration"
+  ],
+  "script": "index.js",
+  "x": 300,
+  "y": 460,
+  "width": 360,
+  "height": 100,
+  "drag_region": "background",
+  "text_color": "#1a1a1a"
+}

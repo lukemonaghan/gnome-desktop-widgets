@@ -8,6 +8,8 @@
 // (nine to pick from, remembered per note), converting between the two kinds,
 // clearing done items, adding another note and deleting this one (the last note
 // stays). A new note takes the next colour in the list.
+// The note grows taller to fit its content, up to the bottom of the screen
+// (beyond that it scrolls), and shrinks back to the height the user gave it.
 
 var items = [];
 var kind = 'list';     // 'list' or 'text'
@@ -15,7 +17,12 @@ var body;              // holds the list or the text, rebuilt when the kind chan
 var textEntry;         // free-text note
 var textSave = 0;      // pending save timer
 var boxHeight = 256;
+var baseHeight = 256;     // the height the user chose: the note never shrinks below it
+var autoHeight = 0;       // the last height we set ourselves, to tell it from a user resize
+var autoTime = 0;         // when (ms), so a late or repeated size report is not taken for the user
+var fitting = false;      // a fit is already queued
 var list;
+var root;
 var scroll;
 var entry;
 var title;
@@ -116,6 +123,50 @@ function later(ctx, fn) {
   });
 }
 
+// Grow (or shrink back) so the whole note shows without scrolling. The height
+// is what the user chose or what the content needs, whichever is more, kept on
+// screen; past that the scroll view takes over.
+function fit(ctx, api) {
+  if (fitting) return;
+  fitting = true;
+  later(ctx, function () {
+    fitting = false;
+    fitNow(ctx, api);
+  });
+}
+
+function fitNow(ctx, api) {
+  if (!root || !scroll || (kind === 'list' ? !list : !textEntry)) return;
+  var box = ctx.box;
+  var boxH = box.get_height();
+  var w = box.get_width();
+  if (boxH <= 0 || w <= 0) return;
+
+  // Ask for preferred sizes, not current ones: those lag behind a resize, and
+  // measuring them right after we grew would make the note grow again forever.
+  // What is not the scrolling area (title, entry, padding) = root - scroll.
+  var content, chrome;
+  try {
+    var viewW = scroll.get_width() > 0 ? scroll.get_width() : w - 20;
+    chrome = root.get_preferred_height(w)[1] - scroll.get_preferred_height(viewW)[1];
+    content = kind === 'text'
+      ? textEntry.clutter_text.get_layout().get_pixel_size()[1] + 16   // + the entry's padding
+      : list.get_preferred_height(viewW)[1];
+  } catch (e) { return; }
+
+  var want = Math.max(baseHeight, Math.ceil(chrome + content) + 2);
+  try {
+    var y = box.get_transformed_position()[1];
+    var room = box.get_stage().get_height() - y - 20;
+    want = Math.min(want, Math.max(baseHeight, Math.floor(room)));
+  } catch (e) { /* no stage yet: leave it uncapped */ }
+
+  if (Math.abs(want - boxH) < 2) return;
+  autoHeight = want;
+  autoTime = Date.now();
+  api.widget.setSize(api.widget.getLayout().width, want);
+}
+
 function rebuild(ctx, api) {
   var St = ctx.St;
   list.destroy_all_children();
@@ -125,6 +176,7 @@ function rebuild(ctx, api) {
       text: 'Nothing yet. Click below to add an item.',
       style: 'color: ' + FADED + '; font-style: italic;',
     }));
+    fit(ctx, api);
     return;
   }
 
@@ -170,6 +222,7 @@ function rebuild(ctx, api) {
     row.add_child(del);
     list.add_child(row);
   });
+  fit(ctx, api);
 }
 
 function scrollToEnd(ctx) {
@@ -193,7 +246,13 @@ function addItem(ctx, api) {
 
 function onResize(ctx, api, w, h) {
   boxHeight = h;
+  // A height we did not set is the user resizing: that is the new minimum
+  if (Math.abs(h - autoHeight) > 1 && Date.now() - autoTime > 500) {
+    baseHeight = h;
+    api.state.set('baseHeight', h);
+  }
   if (kind === 'text' && textEntry) paintBody(ctx, api);
+  fit(ctx, api);   // a new width re-wraps the text
 }
 
 function clearDone(ctx, api) {
@@ -266,6 +325,7 @@ function buildBody(ctx, api) {
     t.connect('text-changed', function () {
       if (textSave) clearTimeout(textSave);
       textSave = setTimeout(function () { textSave = 0; saveText(api); }, 600);
+      fit(ctx, api);
     });
     scroll = scrollArea(ctx, textEntry);
     body.add_child(scroll);
@@ -322,7 +382,7 @@ function render(ctx, api) {
   colour = PALETTES[api.state.get('colour')] ? api.state.get('colour') : 'yellow';
   textSave = 0;
 
-  var root = new St.BoxLayout({
+  root = new St.BoxLayout({
     vertical: true,
     x_expand: true,
     y_expand: true,
@@ -347,6 +407,9 @@ function render(ctx, api) {
   ctx.box.add_child(root);
 
   boxHeight = ctx.box.get_height() || 256;
+  // The saved size may be one we grew to; the user's own height is kept in state
+  autoHeight = boxHeight;
+  baseHeight = Number(api.state.get('baseHeight')) || boxHeight;
   buildBody(ctx, api);
   paint(ctx, api);    // colours everything, then fills the list
 

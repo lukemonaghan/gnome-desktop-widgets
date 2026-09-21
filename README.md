@@ -94,7 +94,7 @@ The Permissions column is what each widget's manifest asks for (see
 | Countdown Timer, Pomodoro Timer | Progress rings. Click to start or pause; right-click for length, restart, reset or skip | |
 | Monthly Calendar | Month grid with today highlighted; right-click to change month | |
 | Calendar Agenda | Today's agenda (sample events) | |
-| Sticky Note | Checklist or free text, in nine colours; add as many as you like | |
+| Sticky Note | Checklist or free text, in nine colours; add as many as you like. It grows taller as the text gets longer | |
 | Quote of the Day | A quote on an indigo card. Right-click for the previous or next quote, or to copy it | |
 | RSS News Feed | Headlines from any RSS or Atom feed. Click for the next headline; right-click to set, add or remove feeds | network |
 | Weather Summary | Current weather from Open-Meteo with generated icons, located from your IP or a city you pick. Right-click for units | network |
